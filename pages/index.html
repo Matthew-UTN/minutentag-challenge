@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>minutentag-challenge</title>
+    <link rel="stylesheet" href="../css/index.css">
+    <script
+        src="https://code.jquery.com/jquery-3.6.1.js"
+        integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI="
+        crossorigin="anonymous"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        $(document).ready(function(){
+            $('#page').hide();
+            $('#filter-body').hide();
+            // Initial values of the selectors
+            var priceInit = $("#selectPrice").val();
+            var alphabetInit = $("#selectAlphabet").val();
+
+            // Filter Names
+            var filterName = "";
+            var filterAlphabet = "";
+            var filterPrice = "";
+
+            // Data Storage
+            var rawData = [];
+            var formatedData = [];
+
+            $.ajax({
+                beforeSend: function (){
+                    $('#loading').show();
+                },
+                url: "https://api.wazirx.com/sapi/v1/tickers/24hr",
+                success: function(data) {
+                    rawData = data;
+                    buildTable(1);
+                },
+                error: function(jqXHR, state, error) {
+                    alert(error);
+                },
+                complete: function(data) {
+                    $('#loading').hide();
+                    $('#page').show();
+                    $('#filter-body').show();
+                },
+            })
+
+            /* START FILTER FUCTIONS */
+            $("input").keyup(function() {
+                filterName = $("input").val();
+                $('#removeName').removeClass("remove-btn-disabled");
+                buildTable(1);
+            })
+
+            $("#selectAlphabet").change(function() {
+                filterAlphabet = $("#selectAlphabet").val();
+                $('#removeAlphabet').removeClass("remove-btn-disabled");
+                $("#selectPrice").val(priceInit);
+                filterPrice = priceInit;
+                $('#removePrice').addClass("remove-btn-disabled");
+                buildTable(1);
+            })
+
+            $("#selectPrice").change(function() {
+                filterPrice = $("#selectPrice").val();
+                $("#removePrice").removeClass("remove-btn-disabled");
+                $("#selectAlphabet").val(alphabetInit);
+                filterAlphabet = alphabetInit;
+                $('#removeAlphabet').addClass("remove-btn-disabled");
+                buildTable(1);
+            })
+            /* END FILTER FUCTIONS */
+
+            /* START FILTER REMOVER FUCTIONS */
+            $('#filter-body').on("click", "span", function () {
+                var filterToRemove = $(this).attr("filter");
+                if(filterToRemove){
+                    switch (filterToRemove) {
+                        case "alphabet":
+                            $("#selectAlphabet").val(alphabetInit);
+                            filterAlphabet = alphabetInit;
+                            $('#removeAlphabet').addClass("remove-btn-disabled");
+                            break;
+                        case "price":
+                            $("#selectPrice").val(priceInit);
+                            filterPrice = priceInit;
+                            $('#removePrice').addClass("remove-btn-disabled");
+                            break;
+                        case "name":
+                            filterName = "";
+                            $("input").val("")
+                            $('#removeName').addClass("remove-btn-disabled");
+                            break;
+                        default:
+                            break;
+                    }
+                    buildTable(1);
+                }
+            });
+            /* END FILTER REMOVER FUCTIONS */
+
+            /* START TABLE FUCTIONS */
+            function buildTable(tableIndex){
+                formatedData = addFilters(rawData, filterName, filterAlphabet, filterPrice);
+                formatedData = organizeArray(formatedData);
+                $('#page-body').html('<div></div>');
+                formatedData[tableIndex-1].forEach(crypto => {
+                    $('#page-body').append(`<div pn="${tableIndex-1}" crypto="${crypto.baseAsset}" class="card-body">
+                        <span class="table-item">
+                            <div class="img-container">
+                            <img class="img" src="https://coinicons-api.vercel.app/api/icon/${crypto.baseAsset}" alt="">
+                            <span class="crypto-name">${crypto.symbol}</span>
+                            </div>
+                        </span>
+                        <span class="table-item">${crypto.baseAsset.toUpperCase()}</span>
+                        <span class="table-item">${crypto.openPrice}</span>
+                        <span class="table-item">${crypto.lowPrice}</span>
+                        <span class="table-item">${crypto.highPrice}</span>
+                        <span class="table-item">${crypto.lastPrice}</span>
+                        <span class="table-item">${crypto.volume}</span>
+                    </div>`);  
+                });
+                var result = Page(tableIndex, formatedData.length, "active", "disabled");
+                $("#pagination").html(result)
+            };
+
+            $("#pagination").on("click", "a", function () {
+                var pageNumber = $(this).attr("page");
+                buildTable(+pageNumber);
+            });
+            /* END TABLE FUCTIONS */
+
+            /* START MODAL FUNCTIONS */
+            $("#page-body").on("click", "div", function () {
+                var pageNumber = $(this).attr("pn");
+                var crypto = $(this).attr("crypto");
+                var cryptoToShow = formatedData[pageNumber].find(element => element.baseAsset == crypto);
+
+                $('#modal-image').html(`<img class="modal-image" src="https://coinicons-api.vercel.app/api/icon/${cryptoToShow.baseAsset}" alt=""> 
+                    <span class="image-name">${cryptoToShow.symbol}</span>`)
+                $('#info').html(`<span class="modal-item">Base asset: ${cryptoToShow.baseAsset.toUpperCase()}</span>
+                    <span class="modal-item">Open price: ${cryptoToShow.openPrice}</span>
+                    <span class="modal-item">Low price: ${cryptoToShow.lowPrice}</span>
+                    <span class="modal-item">High price: ${cryptoToShow.highPrice}</span>
+                    <span class="modal-item">Last price: ${cryptoToShow.lastPrice}</span>
+                    <span class="modal-item">Volume: ${cryptoToShow.volume}</span>
+                    <span class="modal-item">Quote asset: ${cryptoToShow.quoteAsset}</span>
+                    <span class="modal-item">Bid price: ${cryptoToShow.bidPrice}</span>
+                    <span class="modal-item">Ask price: ${cryptoToShow.askPrice}</span>
+                    <span class="modal-item">At: ${date(cryptoToShow.at)}</span>`);
+                $('#modal').show();
+                $('#close-modal').click(function(){
+                    $('#modal').hide();
+                })
+            });
+            /* END MODAL FUNCTIONS */
+        })
+    </script>
+</head>
+<body>
+    <div class="header-body">
+        <span class="header-title">Minutentag challenge - Matias Ignacio Ramos</span>
+    </div>
+    <div class="body">
+        <div id="filter-body" class="filter-body">
+            <div class="container-forms">
+                <form class="crypto-search">
+                    <div class="search">
+                        <div class="title">Search by</div>   
+                    </div>
+                    <div class="center">
+                        <span>Alphabetical order: </span>
+                        <select id="selectAlphabet">
+                            <option class="label" value="No filter">No Filter</option>
+                            <option class="label" value="A-Z">A-Z</option>
+                            <option class="label" value="Z-A">Z-A</option>
+                        </select>
+                        <div class="container-button">
+                            <span id="removeAlphabet" filter="alphabet" class="remove-btn remove-btn-disabled">X</span>
+                        </div>
+                    </div>
+                    <div class="center">
+                        <span>Price: </span>
+                        <select id="selectPrice">
+                            <option class="label" value="No filter">No Filter</option>
+                            <option class="label" value="low to high">low to high</option>
+                            <option class="label" value="high to low">high to low</option>
+                        </select>
+                        <div class="container-button">
+                            <span id="removePrice" filter="price" class="remove-btn remove-btn-disabled">X</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="input-body">
+                <div class="searchImg">
+                    <img src="../images/search.svg"  alt="">
+                </div>
+                <div class="input">
+                    <span>Name: </span>
+                    <input class="filter-body-input">
+                </div>
+                <div class="container-button">
+                    <span id="removeName" filter="name" class="remove-btn remove-btn-disabled">X</span>
+                </div>
+            </div>
+        </div>
+        <div class="dots" id="loading"></div>
+        <div class="page" id="page">
+            <div class="title-header">
+                <span class="header-item">Symbol</span>
+                <span class="header-item">Base Asset</span>
+                <span class="header-item">Open Price</span>
+                <span class="header-item">Low Price</span>
+                <span class="header-item">High Price</span>
+                <span class="header-item">Last Price</span>
+                <span class="header-item">Volume</span>
+            </div>
+            <div class="page-body">
+                <div class="page-component">
+                    <div id="page-body">
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="pagination"></div>
+    </div>
+    <div style="height: 1em;"></div>
+</body>
+
+<!-- MODAL -->
+<div class="modal" id="modal" hidden>
+    <div class="modal-container">
+        <span class="closeModal" id="close-modal" (click)="closeModal()">X</span>
+        <div class="image" id="modal-image">
+
+        </div>
+        <div class="information" id="info">
+
+        </div>
+    </div>
+</div>
+</html>
